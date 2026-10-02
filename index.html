@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>HK Link — Cihazdan Cihaza Doğrudan Aktarım</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Yalnızca P2P bağlantı için PeerJS -->
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg-main: #0B0E14;
+    --bg-card: #151922;
+    --accent: #3B82F6;
+    --accent-glow: rgba(59, 130, 246, 0.25);
+    --accent-hover: #2563EB;
+    --teal: #10B981;
+    --text-primary: #F3F4F6;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --warning: #F59E0B;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  *{
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body{
+    height: 100%;
+    height: 100dvh;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+  }
+
+  /* --- GİRİŞ / KURULUM EKRANI (LANDING) --- */
+  #landing{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100dvh;
+    padding: 20px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .landing-card{
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 24px;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .brand-header{
+    text-align: center;
+  }
+  .brand-logo{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+    color: #fff;
+    font-weight: 800;
+    font-size: 20px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 8px 20px var(--accent-glow);
+  }
+  .brand-title{
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .brand-subtitle{
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  .form-group{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .form-label{
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  input[type="text"]{
+    width: 100%;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 13px 16px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+  input[type="text"]:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  input[readonly]{
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    cursor: default;
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+
+  .btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 14px var(--accent-glow);
+    width: 100%;
+  }
+  .btn:hover{
+    background: var(--accent-hover);
+  }
+  .btn:active{
+    transform: scale(0.98);
+  }
+  .btn:disabled{
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .landing-status{
+    text-align: center;
+    font-size: 13px;
+    color: var(--accent);
+    min-height: 20px;
+  }
+
+  /* --- ANA UYGULAMA PANELİ (APP) --- */
+  #app{
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    height: 100dvh;
+    max-width: 680px;
+    margin: 0 auto;
+    position: relative;
+    background: var(--bg-main);
+  }
+
+  /* ÜST BAR */
+  header.topbar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(12px + var(--safe-top)) 16px 12px 16px;
+    background: rgba(21, 25, 34, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 20;
+    flex-shrink: 0;
+  }
+  .topbar-left{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .app-badge{
+    font-weight: 800;
+    font-size: 14px;
+    background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 8px;
+    letter-spacing: -0.02em;
+  }
+  .room-pill{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+  .room-name{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .status-indicator{
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--warning);
+    flex-shrink: 0;
+  }
+  .status-indicator.connected{
+    background: var(--teal);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  }
+  .status-indicator.connecting{
+    background: var(--warning);
+    animation: blink 1s infinite alternate;
+  }
+  @keyframes blink{
+    0%{ opacity: 0.3; }
+    100%{ opacity: 1; }
+  }
+
+  .topbar-status-text{
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .topbar-right{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .icon-button{
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .icon-button:hover{
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-strong);
+  }
+
+  /* CİHAZ BİLGİ ŞERİDİ */
+  .device-strip{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .device-node{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+  .device-node.me{
+    color: var(--accent);
+  }
+  .device-node.peer{
+    color: var(--teal);
+  }
+  .transfer-line{
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    margin: 0 12px;
+    position: relative;
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .transfer-pulse{
+    position: absolute;
+    top: 0;
+    left: -30%;
+    width: 30%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+  }
+  .transfer-pulse.active{
+    opacity: 1;
+    animation: flowPulse 0.9s ease-in-out infinite;
+  }
+  @keyframes flowPulse{
+    0%{ left: -30%; }
+    100%{ left: 100%; }
+  }
+
+  /* MESAJ LİSTESİ */
+  #messageList{
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .empty-state{
+    margin: auto;
+    text-align: center;
+    max-width: 290px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 24px 0;
+  }
+  .empty-state-icon{
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+  }
+
+  .chat-bubble-row{
+    display: flex;
+    width: 100%;
+  }
+  .chat-bubble-row.me{
+    justify-content: flex-end;
+  }
+  .chat-bubble-row.other{
+    justify-content: flex-start;
+  }
+
+  .bubble{
+    max-width: 84%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    position: relative;
+    word-break: break-word;
+  }
+  .chat-bubble-row.me .bubble{
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-bubble-row.other .bubble{
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+  }
+
+  .bubble-meta{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 10.5px;
+    margin-bottom: 4px;
+    opacity: 0.8;
+  }
+  .chat-bubble-row.me .bubble-meta{
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .chat-bubble-row.other .bubble-meta{
+    color: var(--text-muted);
+  }
+  .bubble-sender{
+    font-weight: 600;
+  }
+
+  .bubble-text{
+    white-space: pre-wrap;
+  }
+  .bubble-footer{
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+  .action-link{
+    background: none;
+    border: none;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 600;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+    color: inherit;
+    padding: 2px 4px;
+  }
+  .action-link:hover{
+    opacity: 1;
+  }
+
+  /* DOSYA KARTI */
+  .file-card{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-top: 4px;
+  }
+  .file-icon{
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .file-details{
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+  .file-name{
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-size{
+    font-size: 11px;
+    opacity: 0.75;
+  }
+  .preview-img{
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: 8px;
+    margin-top: 6px;
+    display: block;
+    object-fit: cover;
+  }
+
+  /* MESAJ YAZMA & DOSYA EKLEME (COMPOSER) */
+  #composer{
+    padding: 12px 16px calc(12px + var(--safe-bottom)) 16px;
+    background: rgba(21, 25, 34, 0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .composer-inner{
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  textarea#msgInput{
+    flex: 1;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 14.5px;
+    outline: none;
+    min-height: 44px;
+    max-height: 120px;
+    resize: none;
+    line-height: 1.4;
+    transition: border-color 0.2s ease;
+  }
+  textarea#msgInput:focus{
+    border-color: var(--accent);
+  }
+  textarea#msgInput:disabled{
+    opacity: 0.4;
+  }
+  .composer-btn{
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+  .attach-btn{
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .attach-btn:hover{
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+  .send-btn{
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 10px var(--accent-glow);
+  }
+  .send-btn:hover{
+    background: var(--accent-hover);
+  }
+  .send-btn:active{
+    transform: scale(0.95);
+  }
+  .composer-btn:disabled{
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  #fileInput{
+    display: none;
+  }
+
+  /* TOAST BİLDİRİM */
+  .toast{
+    position: fixed;
+    top: calc(16px + var(--safe-top));
+    left: 50%;
+    transform: translateX(-50%) translateY(-30px);
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show{
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- GİRİŞ EKRANI -->
+<div id="landing">
+  <div class="landing-card">
+    <div class="brand-header">
+      <div class="brand-logo">HK</div>
+      <h1 class="brand-title">HK Link</h1>
+      <p class="brand-subtitle">Cihazlar arasında Wi-Fi üzerinden doğrudan, sınırsız ve hızlı veri paylaşımı.</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Cihaz Adı</label>
+      <input type="text" id="deviceNameInput" placeholder="örn. Bilgisayar veya Telefon" maxlength="24">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Sabit Eşleşme Kodu</label>
+      <input type="text" id="roomCodeInput" value="Hkn-krkmz" readonly>
+      <span style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">İki cihazınız da bu sabit kod üzerinden otomatik ve kesintisiz eşleşir.</span>
+    </div>
+
+    <button class="btn" id="joinBtn">Bağlan</button>
+    <div class="landing-status" id="connectStatus"></div>
+  </div>
+</div>
+
+<!-- ANA UYGULAMA EKRANI -->
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="app-badge">HK</span>
+      <div class="room-pill" id="roomPill">
+        <span class="status-indicator" id="statusDot"></span>
+        <span class="room-name">Hkn-krkmz</span>
+      </div>
+      <span class="topbar-status-text" id="statusText">aranıyor…</span>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-button" id="refreshBtn" title="Bağlantıyı Yenile">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Cihaz Bilgi ve Transfer Animasyon Şeridi -->
+  <div class="device-strip">
+    <div class="device-node me">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+      <span id="myDeviceLabel">BEN</span>
+    </div>
+    <div class="transfer-line">
+      <div class="transfer-pulse" id="transferPulse"></div>
+    </div>
+    <div class="device-node peer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+      <span id="otherDeviceLabel">DİĞER CİHAZ</span>
+    </div>
+  </div>
+
+  <!-- Mesaj ve Dosya Akışı -->
+  <div id="messageList">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div>Diğer cihazınızda da sayfayı açtığınızda <b>Hkn-krkmz</b> koduyla otomatik eşleşecek ve kesintisiz bağlı kalacaktır.</div>
+    </div>
+  </div>
+
+  <!-- Giriş Alanı -->
+  <div id="composer">
+    <div class="composer-inner">
+      <button class="composer-btn attach-btn" id="attachBtn" title="Dosya Gönder" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L9.64 18.36a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      </button>
+      <input type="file" id="fileInput">
+      <textarea id="msgInput" placeholder="Bağlantı bekleniyor…" rows="1" disabled></textarea>
+      <button class="composer-btn send-btn" id="sendBtn" title="Gönder" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const landing = $('landing');
+  const app = $('app');
+  const toastEl = $('toast');
+
+  // SABİT ODA KODU
+  const FIXED_ROOM = 'hkn-krkmz';
+
+  let deviceName = '';
+  let roomCode = FIXED_ROOM;
+  let deviceId = localStorage.getItem('hk_device_id') || ('hk_' + Math.random().toString(36).slice(2, 9));
+  localStorage.setItem('hk_device_id', deviceId);
+
+  let peer = null;
+  let conn = null;
+  let otherSlotId = null;
+  let outboundRetryTimer = null;
+  let keepAliveInterval = null;
+  let connectAttemptToken = 0;
+  let wakeLock = null;
+
+  // Güçlendirilmiş STUN / TURN sunucu listesi
+  const ICE_SERVERS = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+    ]
+  };
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastEl._timer);
+    toastEl._timer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  }
+
+  function fmtSize(bytes){
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/(1024*1024)).toFixed(2) + ' MB';
+  }
+
+  function fmtTime(ts){
+    return new Date(ts).toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function escapeHtml(s){
+    const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  // Ekranı uyanık tutucu
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    }catch(e){}
+  }
+
+  // Cihaz adını hafızadan al
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const savedName = localStorage.getItem('hk_device_name') || (isMobile ? 'Telefonum' : 'Bilgisayarım');
+  $('deviceNameInput').value = savedName;
+
+  // Daha önce giriş yapıldıysa doğrudan otomatik başlat
+  window.addEventListener('DOMContentLoaded', () => {
+    if(localStorage.getItem('hk_has_joined') === 'true'){
+      startConnect();
+    }
+  });
+
+  $('deviceNameInput').addEventListener('keydown', e => { if(e.key === 'Enter') startConnect(); });
+  $('joinBtn').addEventListener('click', startConnect);
+
+  function startConnect(){
+    const name = $('deviceNameInput').value.trim() || (isMobile ? 'Telefonum' : 'Bilgisayarım');
+    deviceName = name;
+    localStorage.setItem('hk_device_name', deviceName);
+    localStorage.setItem('hk_has_joined', 'true');
+
+    $('joinBtn').disabled = true;
+    $('connectStatus').textContent = 'Bağlanıyor…';
+
+    enterApp();
+    setupNetwork();
+  }
+
+  function setupNetwork(){
+    updateStatus('connecting', 'Eşleşme aranıyor…');
+    const myToken = ++connectAttemptToken;
+    const slotA = 'hk-' + FIXED_ROOM + '-1';
+    const slotB = 'hk-' + FIXED_ROOM + '-2';
+
+    if(peer && !peer.destroyed) peer.destroy();
+    conn = null;
+
+    Promise.all([claimSlot(slotA), claimSlot(slotB)]).then(([resA, resB]) => {
+      if(myToken !== connectAttemptToken) return;
+
+      if(!resA.success && !resB.success){
+        updateStatus('connecting', 'Yeniden deneniyor…');
+        setTimeout(() => { if(myToken === connectAttemptToken) setupNetwork(); }, 1800);
+        return;
+      }
+
+      if(resA.success){
+        peer = resA.peer;
+        otherSlotId = slotB;
+        if(resB.success) resB.peer.destroy();
+      } else {
+        peer = resB.peer;
+        otherSlotId = slotA;
+      }
+
+      updateStatus('connecting', 'Diğer cihaz bekleniyor…');
+
+      peer.on('connection', c => {
+        if(conn){ c.close(); return; }
+        conn = c;
+        clearTimeout(outboundRetryTimer);
+        wireConnection();
+      });
+
+      peer.on('error', err => {
+        if(err.type !== 'peer-unavailable') console.warn('Peer err:', err);
+      });
+
+      attemptOutbound(myToken, 0);
+    });
+  }
+
+  function claimSlot(id){
+    return new Promise(resolve => {
+      const p = new Peer(id, { config: ICE_SERVERS, debug: 0 });
+      let settled = false;
+      p.on('open', () => { if(!settled){ settled = true; resolve({ success:true, peer:p }); } });
+      p.on('error', err => { if(!settled){ settled = true; resolve({ success:false, peer:p, err }); } });
+      setTimeout(() => { if(!settled){ settled = true; resolve({ success:false, peer:p }); } }, 3500);
+    });
+  }
+
+  function attemptOutbound(token, attempt){
+    if(token !== connectAttemptToken || conn) return;
+    const c = peer.connect(otherSlotId, { reliable: true });
+    let settled = false;
+
+    c.on('open', () => {
+      if(settled || conn) return;
+      settled = true;
+      clearTimeout(outboundRetryTimer);
+      conn = c;
+      wireConnection(true);
+    });
+
+    c.on('error', () => {
+      if(settled) return;
+      settled = true;
+      outboundRetryTimer = setTimeout(() => attemptOutbound(token, attempt + 1), 1200);
+    });
+
+    setTimeout(() => {
+      if(!settled && !conn){
+        settled = true;
+        outboundRetryTimer = setTimeout(() => attemptOutbound(token, attempt + 1), 1200);
+      }
+    }, 2000);
+  }
+
+  function enterApp(){
+    landing.style.display = 'none';
+    app.style.display = 'flex';
+    $('myDeviceLabel').textContent = deviceName.toUpperCase().slice(0, 14);
+    requestWakeLock();
+  }
+
+  function updateStatus(state, text){
+    const dot = $('statusDot');
+    dot.className = 'status-indicator ' + (state === 'live' ? 'connected' : (state === 'connecting' ? 'connecting' : ''));
+    $('statusText').textContent = text;
+  }
+
+  function setControlsEnabled(enabled){
+    $('msgInput').disabled = !enabled;
+    $('sendBtn').disabled = !enabled;
+    $('attachBtn').disabled = !enabled;
+    if(enabled){
+      $('msgInput').placeholder = 'Mesaj yazın veya dosya ekleyin…';
+    } else {
+      $('msgInput').placeholder = 'Bağlantı bekleniyor…';
+    }
+  }
+
+  function markConnected(){
+    updateStatus('live', 'Bağlandı');
+    setControlsEnabled(true);
+    showToast('Hkn-krkmz odasında eşleşti ✓');
+    startHeartbeat();
+    if(conn && conn.open){
+      conn.send({ kind: 'handshake', sender: deviceName });
+    }
+  }
+
+  // 3 saniyede bir sessiz sinyalle bağlantıyı canlı tut
+  function startHeartbeat(){
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = setInterval(() => {
+      if(conn && conn.open){
+        conn.send({ kind: 'ping' });
+      }
+    }, 3000);
+  }
+
+  function wireConnection(alreadyOpen){
+    if(alreadyOpen) markConnected();
+    else conn.on('open', markConnected);
+
+    conn.on('data', data => {
+      if(!data) return;
+      if(data.kind === 'ping') return;
+      if(data.kind === 'handshake'){
+        $('otherDeviceLabel').textContent = (data.sender || 'DİĞER CİHAZ').toUpperCase().slice(0, 14);
+        return;
+      }
+      if(data.kind === 'text'){
+        appendMessage({ id: data.id, type: 'text', text: data.text, sender: data.sender, ts: data.ts, mine: false });
+        triggerPulse();
+      } else if(data.kind === 'file'){
+        const blob = new Blob([data.buffer], { type: data.mime || 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        appendMessage({ id: data.id, type: 'file', filename: data.filename, mime: data.mime, size: data.size, url: url, sender: data.sender, ts: data.ts, mine: false });
+        triggerPulse();
+      }
+    });
+
+    conn.on('close', () => handleDrop());
+    conn.on('error', () => handleDrop());
+  }
+
+  function handleDrop(){
+    clearInterval(keepAliveInterval);
+    if(!conn) return;
+    conn = null;
+    updateStatus('connecting', 'Yeniden bağlanılıyor…');
+    setControlsEnabled(false);
+    showToast('Bağlantı tazeleniyor…');
+    setTimeout(() => {
+      if(app.style.display === 'flex'){
+        setupNetwork();
+      }
+    }, 700);
+  }
+
+  // Tarayıcı arka plandan geri döndüğünde, ekran açıldığında veya ağ yenilendiğinde otomatik canlan
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && app.style.display === 'flex'){
+      requestWakeLock();
+      if(!conn || !conn.open){
+        handleDrop();
+      }
+    }
+  });
+  window.addEventListener('online', () => {
+    if(app.style.display === 'flex' && (!conn || !conn.open)){
+      handleDrop();
+    }
+  });
+
+  // Yenile Butonu
+  $('refreshBtn').addEventListener('click', () => {
+    showToast('Bağlantı tazeleniyor…');
+    handleDrop();
+  });
+
+  function triggerPulse(){
+    const pulse = $('transferPulse');
+    pulse.classList.remove('active');
+    void pulse.offsetWidth;
+    pulse.classList.add('active');
+    setTimeout(() => pulse.classList.remove('active'), 1000);
+  }
+
+  function appendMessage(msg){
+    const list = $('messageList');
+    const emptyState = $('emptyState');
+    if(emptyState) emptyState.remove();
+
+    const isNearBottom = (list.scrollHeight - list.scrollTop - list.clientHeight) < 140;
+    const row = document.createElement('div');
+    row.className = 'chat-bubble-row ' + (msg.mine ? 'me' : 'other');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    const meta = document.createElement('div');
+    meta.className = 'bubble-meta';
+    meta.innerHTML = '<span class="bubble-sender">' + escapeHtml(msg.sender) + '</span><span>' + fmtTime(msg.ts) + '</span>';
+    bubble.appendChild(meta);
+
+    if(msg.type === 'text'){
+      const textDiv = document.createElement('div');
+      textDiv.className = 'bubble-text';
+      textDiv.textContent = msg.text;
+      bubble.appendChild(textDiv);
+
+      const footer = document.createElement('div');
+      footer.className = 'bubble-footer';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'action-link';
+      copyBtn.textContent = 'Kopyala';
+      copyBtn.onclick = () => navigator.clipboard?.writeText(msg.text).then(() => showToast('Panoya kopyalandı'));
+      footer.appendChild(copyBtn);
+      bubble.appendChild(footer);
+    } else if(msg.type === 'file'){
+      const card = document.createElement('div');
+      card.className = 'file-card';
+      card.innerHTML = `
+        <div class="file-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        </div>
+        <div class="file-details">
+          <span class="file-name">${escapeHtml(msg.filename)}</span>
+          <span class="file-size">${fmtSize(msg.size)}</span>
+        </div>
+      `;
+      bubble.appendChild(card);
+
+      if(msg.mime && msg.mime.startsWith('image/') && msg.url){
+        const img = document.createElement('img');
+        img.className = 'preview-img';
+        img.src = msg.url;
+        img.alt = msg.filename;
+        bubble.appendChild(img);
+      }
+
+      if(msg.url){
+        const footer = document.createElement('div');
+        footer.className = 'bubble-footer';
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'action-link';
+        dlBtn.textContent = 'İndir';
+        dlBtn.onclick = () => {
+          const a = document.createElement('a');
+          a.href = msg.url;
+          a.download = msg.filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        };
+        footer.appendChild(dlBtn);
+        bubble.appendChild(footer);
+      }
+    }
+
+    row.appendChild(bubble);
+    list.appendChild(row);
+    if(isNearBottom) list.scrollTop = list.scrollHeight;
+  }
+
+  // Mesaj Gönderme
+  $('sendBtn').addEventListener('click', sendText);
+  $('msgInput').addEventListener('keydown', e => {
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendText();
+    }
+  });
+  $('msgInput').addEventListener('input', () => {
+    const el = $('msgInput');
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  });
+
+  function sendText(){
+    const el = $('msgInput');
+    const text = el.value.trim();
+    if(!text || !conn || !conn.open) return;
+    el.value = '';
+    el.style.height = 'auto';
+    const id = 'm_' + Date.now();
+    const payload = { kind: 'text', id, text, sender: deviceName, ts: Date.now() };
+    try{
+      conn.send(payload);
+      appendMessage({ id, type: 'text', text, sender: deviceName, ts: payload.ts, mine: true });
+      triggerPulse();
+    }catch(e){
+      showToast('Gönderilemedi, bağlantı kontrol ediliyor…');
+    }
+  }
+
+  // Dosya Gönderme
+  $('attachBtn').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file || !conn || !conn.open) return;
+    const MAX = 200 * 1024 * 1024; // 200 MB
+    if(file.size > MAX){
+      showToast('Dosya çok büyük (maks 200MB)');
+      return;
+    }
+    if(file.size > 20 * 1024 * 1024){
+      showToast('Büyük dosya aktarılıyor…');
+    }
+
+    try{
+      const buffer = await file.arrayBuffer();
+      const id = 'f_' + Date.now();
+      const payload = {
+        kind: 'file',
+        id,
+        filename: file.name,
+        mime: file.type || 'application/octet-stream',
+        size: file.size,
+        buffer,
+        sender: deviceName,
+        ts: Date.now()
+      };
+      conn.send(payload);
+      const url = URL.createObjectURL(new Blob([buffer], { type: file.type }));
+      appendMessage({ id, type: 'file', filename: file.name, mime: file.type, size: file.size, url, sender: deviceName, ts: payload.ts, mine: true });
+      triggerPulse();
+    }catch(err){
+      showToast('Dosya gönderilemedi');
+    }
+  });
+})();
+</script>
+</body>
+</html>
